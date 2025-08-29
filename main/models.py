@@ -41,6 +41,146 @@ class TwitterAccount(models.Model):
             'ct0': self.ct0_token
         }
 
+class LeadList(models.Model):
+    """Lead list configuration and metadata"""
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('COLLECTING', 'Collecting'),
+        ('COMPLETED', 'Completed'),
+        ('PAUSED', 'Paused'),
+        ('ERROR', 'Error'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lead_lists')
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    
+    # Source configuration
+    target_usernames = models.JSONField(default=list, help_text="List of Twitter usernames to target followers")
+    target_post_urls = models.JSONField(default=list, help_text="List of Twitter post URLs to target commenters")
+    
+    # Filtering criteria
+    min_followers = models.IntegerField(default=0)
+    max_followers = models.IntegerField(default=1000000)
+    locations = models.JSONField(default=list, blank=True, help_text="List of target locations")
+    bio_keywords = models.JSONField(default=list, blank=True, help_text="Keywords to match in bio")
+    exclude_keywords = models.JSONField(default=list, blank=True, help_text="Keywords to exclude from bio")
+    
+    # Collection status
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+    total_collected = models.IntegerField(default=0)
+    max_leads = models.IntegerField(default=1000000)  # Hard limit of 1M
+    estimated_total_leads = models.IntegerField(default=0, help_text="Estimated total leads available based on followers found")
+    
+    # Processing tracking
+    last_processed_at = models.DateTimeField(blank=True, null=True)
+    current_batch_user = models.CharField(max_length=100, blank=True, null=True)
+    current_batch_offset = models.IntegerField(default=0)
+    error_message = models.TextField(blank=True, null=True)
+    
+    # Advanced pagination state (JSON field to store pagination cursors/tokens)
+    pagination_state = models.JSONField(
+        default=dict,
+        help_text="Stores pagination state for each target (usernames, post URLs)"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.name} ({self.total_collected} leads)"
+    
+    def can_collect_more(self):
+        """Check if more leads can be collected"""
+        return self.total_collected < self.max_leads and self.status in ['PENDING', 'COLLECTING']
+    
+    def reset_pagination_state(self):
+        """Reset pagination state to start fresh collection"""
+        self.pagination_state = {}
+        self.current_batch_user = None
+        self.current_batch_offset = 0
+        self.save(update_fields=['pagination_state', 'current_batch_user', 'current_batch_offset'])
+    
+    def get_pagination_progress(self):
+        """Get collection progress for each target"""
+        if not self.pagination_state:
+            return {}
+        
+        progress = {}
+        for key, state in self.pagination_state.items():
+            if key.startswith('followers_'):
+                username = key.replace('followers_', '')
+                progress[f"@{username}"] = {
+                    'type': 'followers',
+                    'collected': state.get('collected_count', 0),
+                    'completed': state.get('completed', False),
+                    'last_processed': state.get('last_processed', 'Never')
+                }
+            elif key.startswith('commenters_'):
+                tweet_id = key.replace('commenters_', '')
+                progress[f"Tweet {tweet_id}"] = {
+                    'type': 'commenters',
+                    'collected': state.get('collected_count', 0),
+                    'completed': state.get('completed', False),
+                    'last_processed': state.get('last_processed', 'Never')
+                }
+        
+        return progress
+    
+    def get_progress_percentage(self):
+        """Calculate progress percentage based on estimated total leads"""
+        if self.estimated_total_leads == 0:
+            return 0
+        return min(100, int((self.total_collected / self.estimated_total_leads) * 100))
+    
+    def get_progress_display(self):
+        """Get formatted progress display"""
+        if self.estimated_total_leads == 0:
+            return f"{self.total_collected} leads collected"
+        percentage = self.get_progress_percentage()
+        return f"{percentage}% complete ({self.total_collected}/{self.estimated_total_leads})"
+    
+    def update_estimated_total(self, new_estimate):
+        """Update estimated total leads (only increase, never decrease)"""
+        if new_estimate > self.estimated_total_leads:
+            self.estimated_total_leads = new_estimate
+            self.save(update_fields=['estimated_total_leads'])
+
+class Lead(models.Model):
+    """Individual lead profile"""
+    lead_list = models.ForeignKey(LeadList, on_delete=models.CASCADE, related_name='leads')
+    
+    # Twitter profile data
+    username = models.CharField(max_length=100)
+    display_name = models.CharField(max_length=200, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=200, blank=True, null=True)
+    followers_count = models.IntegerField(default=0)
+    following_count = models.IntegerField(default=0)
+    tweet_count = models.IntegerField(default=0)
+    profile_image_url = models.URLField(blank=True, null=True)
+    verified = models.BooleanField(default=False)
+    
+    # Collection metadata
+    source_type = models.CharField(max_length=20, choices=[
+        ('FOLLOWER', 'Follower'),
+        ('COMMENTER', 'Commenter'),
+    ])
+    source_reference = models.CharField(max_length=200)  # Username or post URL
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['lead_list', 'username']
+        indexes = [
+            models.Index(fields=['lead_list', 'username'], name='lead_list_username_idx'),
+            models.Index(fields=['lead_list', 'created_at'], name='lead_list_created_idx'),
+        ]
+    
+    def __str__(self):
+        return f"@{self.username} ({self.display_name})"
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     """Create user profile when user is created"""

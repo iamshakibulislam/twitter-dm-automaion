@@ -1,0 +1,260 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ lead_list.name }} — Lead Builder{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold glow-text">{{ lead_list.name }}</h1>
+            <div class="text-sm text-slate-400 mt-1">
+                {% if lead_list.description %}{{ lead_list.description }}{% else %}Lead list details and collected profiles{% endif %}
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'lead_export' lead_list.id %}" class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 transition-colors">
+                <i class="fas fa-download mr-2"></i>Export CSV
+            </a>
+            <a href="{% url 'lead_builder_edit' lead_list.id %}" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+            <a href="{% url 'lead_builder_list' %}" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Lists
+            </a>
+        </div>
+    </div>
+
+    <!-- Status and Progress -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="p-4 rounded-2xl neon-border bg-neutral-800/40">
+            <div class="text-sm text-slate-400">Status</div>
+            <div class="text-xl font-semibold mt-1 flex items-center">
+                {% if lead_list.status == 'COLLECTING' %}
+                    <span class="text-green-400"><i class="fas fa-sync fa-spin mr-2"></i>Collecting</span>
+                {% elif lead_list.status == 'COMPLETED' %}
+                    <span class="text-blue-400"><i class="fas fa-check-circle mr-2"></i>Completed</span>
+                {% elif lead_list.status == 'PAUSED' %}
+                    <span class="text-yellow-400"><i class="fas fa-pause-circle mr-2"></i>Paused</span>
+                {% elif lead_list.status == 'ERROR' %}
+                    <span class="text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Error</span>
+                {% else %}
+                    <span class="text-gray-400"><i class="fas fa-clock mr-2"></i>Pending</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="p-4 rounded-2xl neon-border bg-neutral-800/40">
+            <div class="text-sm text-slate-400">Collected Leads</div>
+            <div class="text-2xl font-semibold mt-1">{{ lead_list.total_collected|floatformat:0 }}</div>
+            <div class="text-xs text-green-400 mt-1">of {{ lead_list.max_leads|floatformat:0 }} max</div>
+        </div>
+        
+        <div class="p-4 rounded-2xl neon-border bg-neutral-800/40">
+            <div class="text-sm text-slate-400">Progress</div>
+            <div class="text-2xl font-semibold mt-1">{{ progress_percentage|floatformat:1 }}%</div>
+            <div class="w-full bg-gray-700 rounded-full h-2 mt-2">
+                <div class="bg-gradient-to-r from-purple-500 to-cyan-400 h-2 rounded-full transition-all" 
+                     style="width: {{ progress_percentage }}%"></div>
+            </div>
+            <div class="text-xs text-slate-400 mt-1">{{ progress_display }}</div>
+        </div>
+        
+        <div class="p-4 rounded-2xl neon-border bg-neutral-800/40">
+            <div class="text-sm text-slate-400">Sources</div>
+            <div class="text-2xl font-semibold mt-1">{{ lead_list.target_usernames|length|add:lead_list.target_post_urls|length }}</div>
+            <div class="text-xs text-slate-400 mt-1">Target sources</div>
+        </div>
+    </div>
+
+    <!-- Configuration Summary -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+            <h3 class="text-lg font-semibold mb-4 text-white flex items-center">
+                <i class="fas fa-bullseye mr-2 text-purple-400"></i>
+                Target Sources
+            </h3>
+            <div class="space-y-3">
+                {% if lead_list.target_usernames %}
+                    <div>
+                        <div class="text-sm font-medium text-purple-300 mb-1">Follower Sources:</div>
+                        <div class="flex flex-wrap gap-2">
+                            {% for username in lead_list.target_usernames %}
+                                <span class="px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs">@{{ username }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+                {% if lead_list.target_post_urls %}
+                    <div>
+                        <div class="text-sm font-medium text-cyan-300 mb-1">Post Sources:</div>
+                        <div class="text-xs text-slate-400">{{ lead_list.target_post_urls|length }} post{{ lead_list.target_post_urls|length|pluralize }} targeting commenters</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+            <h3 class="text-lg font-semibold mb-4 text-white flex items-center">
+                <i class="fas fa-filter mr-2 text-green-400"></i>
+                Filtering Criteria
+            </h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Followers Range:</span>
+                    <span class="text-white">{{ lead_list.min_followers|floatformat:0 }} - {{ lead_list.max_followers|floatformat:0 }}</span>
+                </div>
+                {% if lead_list.locations %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Locations:</span>
+                        <span class="text-white">{{ lead_list.locations|length }} location{{ lead_list.locations|length|pluralize }}</span>
+                    </div>
+                {% endif %}
+                {% if lead_list.bio_keywords %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Include Keywords:</span>
+                        <span class="text-white">{{ lead_list.bio_keywords|length }} keyword{{ lead_list.bio_keywords|length|pluralize }}</span>
+                    </div>
+                {% endif %}
+                {% if lead_list.exclude_keywords %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Exclude Keywords:</span>
+                        <span class="text-white">{{ lead_list.exclude_keywords|length }} keyword{{ lead_list.exclude_keywords|length|pluralize }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Controls -->
+    {% if lead_list.status in 'COLLECTING,PAUSED' and can_collect_more %}
+        <div class="flex justify-center mb-6">
+            <button onclick="toggleCollection({{ lead_list.id }})" 
+                    id="toggle-btn"
+                    class="px-6 py-3 rounded-xl {% if lead_list.status == 'COLLECTING' %}bg-yellow-600 hover:bg-yellow-700{% else %}bg-green-600 hover:bg-green-700{% endif %} transition-colors">
+                {% if lead_list.status == 'COLLECTING' %}
+                    <i class="fas fa-pause mr-2"></i>Pause Collection
+                {% else %}
+                    <i class="fas fa-play mr-2"></i>Resume Collection
+                {% endif %}
+            </button>
+        </div>
+    {% endif %}
+
+    <!-- Collected Leads -->
+    <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white flex items-center">
+                <i class="fas fa-users mr-2 text-blue-400"></i>
+                Recent Leads ({{ leads|length }} of {{ lead_list.total_collected }})
+            </h3>
+            {% if lead_list.total_collected > 10 %}
+                <div class="text-sm text-slate-400">
+                    Showing most recent 10 leads
+                </div>
+            {% endif %}
+        </div>
+
+        {% if leads %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for lead in leads %}
+                <div class="p-4 rounded-xl bg-neutral-900/50 border border-white/5 hover:border-white/10 transition-all">
+                    <div class="flex items-start gap-3">
+                        {% if lead.profile_image_url %}
+                            <img src="{{ lead.profile_image_url }}" class="w-12 h-12 rounded-full" alt="{{ lead.username }}">
+                        {% else %}
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center">
+                                <i class="fas fa-user text-white"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <div class="font-semibold text-white truncate">{{ lead.display_name|default:lead.username }}</div>
+                                {% if lead.verified %}
+                                    <i class="fas fa-check-circle text-blue-400 text-xs"></i>
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-slate-400">@{{ lead.username }}</div>
+                            
+                            {% if lead.bio %}
+                                <div class="text-xs text-slate-300 mt-2 line-clamp-2">{{ lead.bio|truncatechars:100 }}</div>
+                            {% endif %}
+                            
+                            <div class="flex items-center justify-between mt-3 text-xs text-slate-400">
+                                <div class="flex items-center gap-3">
+                                    <span><i class="fas fa-users mr-1"></i>{{ lead.followers_count|floatformat:0 }}</span>
+                                    {% if lead.location %}
+                                        <span><i class="fas fa-map-marker-alt mr-1"></i>{{ lead.location|truncatechars:15 }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-right">
+                                    <div class="{% if lead.source_type == 'FOLLOWER' %}text-purple-400{% else %}text-cyan-400{% endif %}">
+                                        {{ lead.source_type }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+
+        {% else %}
+            <div class="text-center py-8">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-users text-2xl text-slate-400"></i>
+                </div>
+                <h4 class="text-lg font-semibold text-white mb-2">No Leads Collected Yet</h4>
+                <p class="text-slate-400">
+                    {% if lead_list.status == 'PENDING' %}
+                        Lead collection will start automatically in the background.
+                    {% elif lead_list.status == 'PAUSED' %}
+                        Collection is paused. Click "Resume Collection" to continue.
+                    {% elif lead_list.status == 'ERROR' %}
+                        There was an error during collection. Check your configuration.
+                    {% else %}
+                        Collection is in progress. Leads will appear here as they are found.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+async function toggleCollection(leadListId) {
+    const btn = document.getElementById('toggle-btn');
+    const originalHtml = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/lead-builder/${leadListId}/pause/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+</script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

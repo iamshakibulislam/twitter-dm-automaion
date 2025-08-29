@@ -38,7 +38,7 @@ border: 1px solid rgba(124,58,237,0.25);
 
 <nav class="flex-1">
 <a href="{% url 'dashboard' %}" class="block py-2 px-3 rounded-xl hover:bg-white/5">Dashboard</a>
-<a href="/lead-builder" class="block py-2 px-3 rounded-xl hover:bg-white/5">Lead Builder</a>
+<a href="{% url 'lead_builder_list' %}" class="block py-2 px-3 rounded-xl hover:bg-white/5">Lead Builder</a>
 <a href="/campaigns" class="block py-2 px-3 rounded-xl hover:bg-white/5">Campaigns</a>
 <a href="/inbox" class="block py-2 px-3 rounded-xl hover:bg-white/5">Inbox</a>
 <a href="/accounts" class="block py-2 px-3 rounded-xl hover:bg-white/5">Accounts</a>
@@ -46,13 +46,7 @@ border: 1px solid rgba(124,58,237,0.25);
 </nav>
 
 
-<div class="mt-auto">
-<div class="text-xs text-slate-400 mb-3">Connected Accounts</div>
-<div class="flex flex-wrap gap-2">
-<div class="px-3 py-1 rounded-full bg-white/5 text-sm">@brand_ops</div>
-<div class="px-3 py-1 rounded-full bg-white/5 text-sm">@sales_auto</div>
-</div>
-</div>
+
 </aside>
 
 

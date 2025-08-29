@@ -1,3 +1,4 @@
+
 """
 Django settings for xoutreacher project.
 
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_crontab',
     'main',
 ]
 
@@ -121,3 +123,41 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Django-crontab settings
+CRONJOBS = [
+    # Lead collection every 20 minutes - calls synchronous function directly
+    ('*/20 * * * *', 'main.utils.lead_collection_sync.collect_leads', {'max_lists': 5, 'verbose': False}),
+    
+    # Hourly lead collection with force flag (backup) - calls synchronous function directly  
+    ('0 * * * *', 'main.utils.lead_collection_sync.collect_leads', {'max_lists': 10, 'force': True, 'verbose': False}),
+    
+    # Daily cleanup at 3 AM
+    ('0 3 * * *', 'main.utils.lead_collection_sync.collect_leads', {'cleanup': True, 'verbose': False}),
+]
+
+# Crontab lock to prevent overlapping jobs
+CRONTAB_LOCK_JOBS = True
+
+# Log output for debugging
+CRONTAB_COMMAND_SUFFIX = '2>&1'
+
+# Lead Collection Multithreading Settings
+LEAD_COLLECTION_SETTINGS = {
+    'MAX_THREADS': 5,  # Maximum concurrent threads for lead collection
+    'MAX_ACCOUNTS_PER_USER': 3,  # Max Twitter accounts to use per user simultaneously
+    'BATCH_SIZE': 1000,  # Leads to collect per batch
+    'RATE_LIMIT_DELAY': 30,  # Seconds to wait on rate limit
+    'MAX_RETRIES': 3,  # Maximum retry attempts
+    'ACCOUNT_TIMEOUT_MINUTES': 30,  # Minutes before releasing stuck accounts
+    'API_DELAY_RANGE': (0.5, 1.5),  # Random delay between API calls (min, max)
+}
+
+# Database connection settings for multithreading
+DATABASES['default'].update({
+    'CONN_MAX_AGE': 0,  # Prevent persistent connections in threads
+    'OPTIONS': {
+        'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        'charset': 'utf8mb4',
+    } if 'mysql' in DATABASES['default']['ENGINE'] else {}
+})

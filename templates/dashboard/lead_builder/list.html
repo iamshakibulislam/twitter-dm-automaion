@@ -1,0 +1,259 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Lead Builder — XOutreacher{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold glow-text">Lead Builder 🎯</h1>
+            <div class="text-sm text-slate-400 mt-1">Create and manage your targeted lead lists</div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'lead_builder_create' %}" class="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 shadow-md hover:from-purple-700 hover:to-cyan-600 transition-all">
+                <i class="fas fa-plus mr-2"></i>Create Lead List
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-4 rounded-xl {% if message.tags == 'error' %}bg-red-500/20 border border-red-500/30 text-red-200{% elif message.tags == 'success' %}bg-green-500/20 border border-green-500/30 text-green-200{% else %}bg-blue-500/20 border border-blue-500/30 text-blue-200{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if lead_lists %}
+        <!-- Lead Lists Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {% for lead_list in lead_lists %}
+            <div class="p-6 rounded-2xl neon-border bg-neutral-800/40 hover:bg-neutral-800/60 transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-white mb-1">{{ lead_list.name }}</h3>
+                        {% if lead_list.description %}
+                            <p class="text-sm text-slate-400 mb-3">{{ lead_list.description|truncatechars:100 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2 ml-4">
+                        {% if lead_list.status == 'COLLECTING' %}
+                            <span class="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs">
+                                <i class="fas fa-sync fa-spin mr-1"></i>Collecting
+                            </span>
+                        {% elif lead_list.status == 'COMPLETED' %}
+                            <span class="px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs">
+                                <i class="fas fa-check-circle mr-1"></i>Completed
+                            </span>
+                        {% elif lead_list.status == 'PAUSED' %}
+                            <span class="px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-xs">
+                                <i class="fas fa-pause-circle mr-1"></i>Paused
+                            </span>
+                        {% elif lead_list.status == 'ERROR' %}
+                            <span class="px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs">
+                                <i class="fas fa-exclamation-circle mr-1"></i>Error
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 rounded-full bg-gray-500/20 text-gray-400 text-xs">
+                                <i class="fas fa-clock mr-1"></i>Pending
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Progress</span>
+                        {% if lead_list.estimated_total_leads > 0 %}
+                            <span>{{ lead_list.total_collected|floatformat:0 }} / {{ lead_list.estimated_total_leads|floatformat:0 }}</span>
+                        {% else %}
+                            <span>{{ lead_list.total_collected|floatformat:0 }} / {{ lead_list.max_leads|floatformat:0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="w-full bg-gray-700 rounded-full h-2">
+                        <div class="bg-gradient-to-r from-purple-500 to-cyan-400 h-2 rounded-full transition-all" 
+                             style="width: {{ lead_list.progress_percentage|floatformat:1 }}%"></div>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1">{{ lead_list.progress_display }}</div>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="text-center p-3 rounded-lg bg-purple-500/10">
+                        <div class="text-sm text-purple-400">Sources</div>
+                        <div class="text-lg font-semibold text-white">
+                            {{ lead_list.total_sources }}
+                        </div>
+                    </div>
+                    <div class="text-center p-3 rounded-lg bg-cyan-500/10">
+                        <div class="text-sm text-cyan-400">Max Leads</div>
+                        <div class="text-lg font-semibold text-white">{{ lead_list.max_leads|floatformat:0 }}</div>
+                    </div>
+                </div>
+
+                <!-- Configuration Summary -->
+                <div class="space-y-2 mb-4 text-xs text-slate-400">
+                    {% if lead_list.target_usernames %}
+                        <div>
+                            <i class="fas fa-users mr-1"></i>
+                            Targeting followers of: {{ lead_list.target_usernames|slice:":3"|join:", " }}
+                            {% if lead_list.target_usernames|length > 3 %} +{{ lead_list.target_usernames|length|add:"-3" }} more{% endif %}
+                        </div>
+                    {% endif %}
+                    {% if lead_list.target_post_urls %}
+                        <div>
+                            <i class="fas fa-comments mr-1"></i>
+                            {{ lead_list.target_post_urls|length }} post{{ lead_list.target_post_urls|length|pluralize }} for commenters
+                        </div>
+                    {% endif %}
+                    <div>
+                        <i class="fas fa-filter mr-1"></i>
+                        {{ lead_list.min_followers|floatformat:0 }} - {{ lead_list.max_followers|floatformat:0 }} followers
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-between pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-2">
+                        <a href="{% url 'lead_builder_detail' lead_list.id %}" 
+                           class="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-sm">
+                            <i class="fas fa-eye mr-1"></i>View
+                        </a>
+                        <a href="{% url 'lead_builder_edit' lead_list.id %}" 
+                           class="px-3 py-2 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-sm">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </a>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        {% if lead_list.status in 'COLLECTING,PAUSED' %}
+                            <button onclick="toggleCollection({{ lead_list.id }})" 
+                                    id="toggle-btn-{{ lead_list.id }}"
+                                    class="px-3 py-2 rounded-lg {% if lead_list.status == 'COLLECTING' %}bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30{% else %}bg-green-500/20 text-green-400 hover:bg-green-500/30{% endif %} transition-colors text-sm">
+                                {% if lead_list.status == 'COLLECTING' %}
+                                    <i class="fas fa-pause mr-1"></i>Pause
+                                {% else %}
+                                    <i class="fas fa-play mr-1"></i>Resume
+                                {% endif %}
+                            </button>
+                        {% endif %}
+                        
+                        <a href="{% url 'lead_builder_delete' lead_list.id %}" 
+                           class="px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors text-sm">
+                            <i class="fas fa-trash mr-1"></i>Delete
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Last Updated -->
+                <div class="text-xs text-slate-500 mt-3">
+                    Created {{ lead_list.created_at|timesince }} ago
+                    {% if lead_list.last_processed_at %}
+                        • Last processed {{ lead_list.last_processed_at|timesince }} ago
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+            <div class="flex justify-center mt-8">
+                <div class="flex items-center gap-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" 
+                           class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    {% endif %}
+                    
+                    <span class="px-4 py-2 text-slate-300">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                    
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" 
+                           class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-12">
+            <div class="w-24 h-24 bg-gradient-to-br from-purple-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-bullseye text-4xl text-slate-400"></i>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">No Lead Lists Created</h3>
+            <p class="text-slate-400 mb-6 max-w-md mx-auto">
+                Start building your first lead list by targeting Twitter followers or post commenters with advanced filtering options.
+            </p>
+            <a href="{% url 'lead_builder_create' %}" class="inline-flex items-center px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 transition-all">
+                <i class="fas fa-plus mr-2"></i>Create Your First Lead List
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+async function toggleCollection(leadListId) {
+    const btn = document.getElementById(`toggle-btn-${leadListId}`);
+    const originalHtml = btn.innerHTML;
+    
+    // Update button to show loading
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Processing...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/lead-builder/${leadListId}/pause/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show success message
+            showMessage(data.message, 'success');
+            // Reload page to show updated status
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showMessage(data.message, 'error');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        showMessage('Error toggling collection: ' + error.message, 'error');
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
+function showMessage(message, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `fixed top-4 right-4 p-4 rounded-xl z-50 transition-all ${
+        type === 'success' ? 'bg-green-500/20 border border-green-500/30 text-green-200' : 
+        'bg-red-500/20 border border-red-500/30 text-red-200'
+    }`;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+}
+
+
+</script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

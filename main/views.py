@@ -4,8 +4,9 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
-from .forms import SignUpForm, LoginForm, TwitterAccountForm
-from .models import TwitterAccount
+from django.core.paginator import Paginator
+from .forms import SignUpForm, LoginForm, TwitterAccountForm, LeadListForm
+from .models import TwitterAccount, LeadList, Lead
 import asyncio
 import json
 from django.utils import timezone
@@ -299,3 +300,149 @@ async def _test_connection_async(cookies):
             'success': False,
             'error': f'Connection initialization failed: {str(e)}'
         }
+
+# Lead Builder Views
+@login_required
+def lead_builder_list(request):
+    """List all lead lists for the current user"""
+    lead_lists = LeadList.objects.filter(user=request.user).order_by('-created_at')
+    
+    # Add pagination
+    paginator = Paginator(lead_lists, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Add progress information for each lead list
+    for lead_list in page_obj:
+        lead_list.progress_percentage = lead_list.get_progress_percentage()
+        lead_list.progress_display = lead_list.get_progress_display()
+        # Calculate total sources count
+        lead_list.total_sources = len(lead_list.target_usernames or []) + len(lead_list.target_post_urls or [])
+    
+    return render(request, 'dashboard/lead_builder/list.html', {
+        'lead_lists': page_obj,
+        'page_obj': page_obj
+    })
+
+@login_required
+def lead_builder_create(request):
+    """Create a new lead list"""
+    if request.method == 'POST':
+        form = LeadListForm(request.POST)
+        if form.is_valid():
+            lead_list = form.save(user=request.user)
+            messages.success(request, f'Lead list "{lead_list.name}" created successfully! Collection will start in the background.')
+            return redirect('lead_builder_detail', lead_list_id=lead_list.id)
+    else:
+        form = LeadListForm()
+    
+    return render(request, 'dashboard/lead_builder/create.html', {'form': form})
+
+@login_required
+def lead_builder_detail(request, lead_list_id):
+    """View lead list details and collected leads"""
+    lead_list = get_object_or_404(LeadList, id=lead_list_id, user=request.user)
+    
+    # Get only first 10 leads (most recent)
+    leads = Lead.objects.filter(lead_list=lead_list).order_by('-created_at')[:10]
+    
+    # Calculate collection progress using new method
+    progress_percentage = lead_list.get_progress_percentage()
+    progress_display = lead_list.get_progress_display()
+    
+    context = {
+        'lead_list': lead_list,
+        'leads': leads,
+        'progress_percentage': progress_percentage,
+        'progress_display': progress_display,
+        'can_collect_more': lead_list.can_collect_more()
+    }
+    
+    return render(request, 'dashboard/lead_builder/detail.html', context)
+
+@login_required
+def lead_builder_edit(request, lead_list_id):
+    """Edit an existing lead list"""
+    lead_list = get_object_or_404(LeadList, id=lead_list_id, user=request.user)
+    
+    if request.method == 'POST':
+        form = LeadListForm(request.POST, instance=lead_list)
+        if form.is_valid():
+            lead_list = form.save(user=request.user)
+            messages.success(request, f'Lead list "{lead_list.name}" updated successfully!')
+            return redirect('lead_builder_detail', lead_list_id=lead_list.id)
+    else:
+        form = LeadListForm(instance=lead_list)
+    
+    return render(request, 'dashboard/lead_builder/edit.html', {
+        'form': form,
+        'lead_list': lead_list
+    })
+
+@login_required
+def lead_builder_delete(request, lead_list_id):
+    """Delete a lead list"""
+    lead_list = get_object_or_404(LeadList, id=lead_list_id, user=request.user)
+    
+    if request.method == 'POST':
+        lead_name = lead_list.name
+        lead_list.delete()
+        messages.success(request, f'Lead list "{lead_name}" has been deleted.')
+        return redirect('lead_builder_list')
+    
+    return render(request, 'dashboard/lead_builder/delete.html', {'lead_list': lead_list})
+
+@login_required
+def lead_builder_pause(request, lead_list_id):
+    """Pause/resume lead collection"""
+    lead_list = get_object_or_404(LeadList, id=lead_list_id, user=request.user)
+    
+    if lead_list.status == 'COLLECTING':
+        lead_list.status = 'PAUSED'
+        action = 'paused'
+    elif lead_list.status == 'PAUSED':
+        lead_list.status = 'COLLECTING'
+        action = 'resumed'
+    else:
+        return JsonResponse({'success': False, 'message': 'Cannot pause/resume this lead list'})
+    
+    lead_list.save()
+    
+    return JsonResponse({
+        'success': True,
+        'message': f'Lead collection {action} successfully',
+        'status': lead_list.status
+    })
+
+@login_required
+def lead_export(request, lead_list_id):
+    """Export leads as CSV"""
+    import csv
+    from django.http import HttpResponse
+    
+    lead_list = get_object_or_404(LeadList, id=lead_list_id, user=request.user)
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{lead_list.name}_leads.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Username', 'Display Name', 'Bio', 'Location', 'Followers', 
+        'Following', 'Tweets', 'Verified', 'Source Type', 'Source Reference'
+    ])
+    
+    for lead in lead_list.leads.all():
+        writer.writerow([
+            lead.username,
+            lead.display_name or '',
+            lead.bio or '',
+            lead.location or '',
+            lead.followers_count,
+            lead.following_count,
+            lead.tweet_count,
+            'Yes' if lead.verified else 'No',
+            lead.source_type,
+            lead.source_reference
+        ])
+    
+    return response

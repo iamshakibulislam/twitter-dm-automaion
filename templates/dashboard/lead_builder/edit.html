@@ -1,0 +1,501 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Edit {{ lead_list.name }} — Lead Builder{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold glow-text">Edit Lead List 📝</h1>
+            <div class="text-sm text-slate-400 mt-1">Modify your lead list configuration</div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'lead_builder_detail' lead_list.id %}" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Details
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-4 rounded-xl {% if message.tags == 'error' %}bg-red-500/20 border border-red-500/30 text-red-200{% elif message.tags == 'success' %}bg-green-500/20 border border-green-500/30 text-green-200{% else %}bg-blue-500/20 border border-blue-500/30 text-blue-200{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Warning about editing active lead list -->
+    {% if lead_list.status == 'COLLECTING' %}
+        <div class="mb-6 p-4 rounded-xl bg-yellow-500/20 border border-yellow-500/30 text-yellow-200">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <div>
+                    <div class="font-semibold">Active Collection Warning</div>
+                    <div class="text-sm">This lead list is currently collecting. Changes will affect future collection batches.</div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <form method="post" id="edit-form" class="max-w-6xl mx-auto">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Basic Configuration -->
+            <div class="space-y-6">
+                <!-- Basic Information -->
+                <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+                    <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-blue-400"></i>
+                        Basic Information
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                Lead List Name *
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.name.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div>
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                Description
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.description.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div>
+                            <label for="{{ form.operation_type.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                Filter Operation *
+                            </label>
+                            {{ form.operation_type }}
+                            <div class="mt-2 text-xs text-slate-400">
+                                <strong>AND:</strong> Users must match ALL conditions<br>
+                                <strong>OR:</strong> Users must match ANY condition
+                            </div>
+                            {% if form.operation_type.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.operation_type.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Target Sources -->
+                <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+                    <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
+                        <i class="fas fa-bullseye mr-2 text-purple-400"></i>
+                        Target Sources
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <!-- Follower Sources -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                <i class="fas fa-users mr-2 text-purple-400"></i>
+                                Follower Sources
+                            </label>
+                            <div class="space-y-2">
+                                <div id="follower-tags" class="flex flex-wrap gap-2 min-h-[2.5rem] p-3 border border-gray-600 rounded-xl bg-neutral-900/50"></div>
+                                <input 
+                                    type="text" 
+                                    id="follower-input" 
+                                    placeholder="Enter username or profile URL, then press Enter"
+                                    class="w-full px-4 py-3 border border-gray-600 rounded-xl bg-neutral-800/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                />
+                                <div class="text-xs text-slate-400">
+                                    {{ form.target_usernames_text.help_text }} • Example: @username or https://twitter.com/username
+                                </div>
+                            </div>
+                            {{ form.target_usernames_text }}
+                            {% if form.target_usernames_text.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.target_usernames_text.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Post Sources -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                <i class="fas fa-comments mr-2 text-cyan-400"></i>
+                                Post Commenter Sources
+                            </label>
+                            <div class="space-y-2">
+                                <div id="post-tags" class="flex flex-wrap gap-2 min-h-[2.5rem] p-3 border border-gray-600 rounded-xl bg-neutral-900/50"></div>
+                                <input 
+                                    type="text" 
+                                    id="post-input" 
+                                    placeholder="Enter post URL, then press Enter"
+                                    class="w-full px-4 py-3 border border-gray-600 rounded-xl bg-neutral-800/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                                />
+                                <div class="text-xs text-slate-400">
+                                    {{ form.target_post_urls_text.help_text }} • Example: https://twitter.com/user/status/123456789
+                                </div>
+                            </div>
+                            {{ form.target_post_urls_text }}
+                            {% if form.target_post_urls_text.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.target_post_urls_text.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Filtering Options -->
+            <div class="space-y-6">
+                <!-- Follower Filtering -->
+                <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+                    <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
+                        <i class="fas fa-filter mr-2 text-green-400"></i>
+                        Follower Filtering
+                    </h2>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.min_followers.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                Minimum Followers
+                            </label>
+                            {{ form.min_followers }}
+                            {% if form.min_followers.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.min_followers.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div>
+                            <label for="{{ form.max_followers.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                Maximum Followers
+                            </label>
+                            {{ form.max_followers }}
+                            {% if form.max_followers.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.max_followers.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Filtering -->
+                <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+                    <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
+                        <i class="fas fa-map-marker-alt mr-2 text-cyan-400"></i>
+                        Location Filtering
+                    </h2>
+                    
+                    <div>
+                        <label for="{{ form.locations_text.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                            Target Locations
+                        </label>
+                        {{ form.locations_text }}
+                        <div class="mt-2 text-xs text-slate-400">
+                            {{ form.locations_text.help_text }}
+                        </div>
+                        {% if form.locations_text.errors %}
+                            <div class="mt-2 text-red-400 text-sm">
+                                {% for error in form.locations_text.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Bio Keyword Filtering -->
+                <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+                    <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
+                        <i class="fas fa-search mr-2 text-yellow-400"></i>
+                        Bio Keyword Filtering
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="{{ form.bio_keywords_text.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                Include Keywords
+                            </label>
+                            {{ form.bio_keywords_text }}
+                            <div class="mt-2 text-xs text-slate-400">
+                                {{ form.bio_keywords_text.help_text }}
+                            </div>
+                            {% if form.bio_keywords_text.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.bio_keywords_text.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div>
+                            <label for="{{ form.exclude_keywords_text.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                                Exclude Keywords
+                            </label>
+                            {{ form.exclude_keywords_text }}
+                            <div class="mt-2 text-xs text-slate-400">
+                                {{ form.exclude_keywords_text.help_text }}
+                            </div>
+                            {% if form.exclude_keywords_text.errors %}
+                                <div class="mt-2 text-red-400 text-sm">
+                                    {% for error in form.exclude_keywords_text.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collection Limits -->
+                <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
+                    <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
+                        <i class="fas fa-cog mr-2 text-orange-400"></i>
+                        Collection Settings
+                    </h2>
+                    
+                    <div>
+                        <label for="{{ form.max_leads.id_for_label }}" class="block text-sm font-medium text-gray-300 mb-2">
+                            Maximum Leads to Collect
+                        </label>
+                        {{ form.max_leads }}
+                        <div class="mt-2 text-xs text-slate-400">
+                            Hard limit: 1,000,000 leads per list
+                        </div>
+                        {% if form.max_leads.errors %}
+                            <div class="mt-2 text-red-400 text-sm">
+                                {% for error in form.max_leads.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Errors -->
+        {% if form.non_field_errors %}
+            <div class="mt-6 p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-200">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Submit Button -->
+        <div class="mt-8 flex justify-center">
+            <button type="submit" id="submit-btn" class="px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 transition-all text-white font-medium text-lg">
+                <i class="fas fa-save mr-2"></i>Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Tag Manager Class for interactive tag input
+class TagManager {
+    constructor(inputId, tagsId, hiddenFieldId, type) {
+        this.input = document.getElementById(inputId);
+        this.tagsContainer = document.getElementById(tagsId);
+        this.hiddenField = document.getElementById(hiddenFieldId);
+        this.type = type;
+        this.tags = [];
+        
+        this.init();
+    }
+    
+    init() {
+        // Load existing tags from hidden field
+        if (this.hiddenField.value) {
+            this.tags = this.hiddenField.value.split('\n').filter(tag => tag.trim());
+            this.renderTags();
+        }
+        
+        // Add event listeners
+        this.input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.addTag();
+            }
+        });
+        
+        this.input.addEventListener('blur', () => {
+            if (this.input.value.trim()) {
+                this.addTag();
+            }
+        });
+    }
+    
+    addTag() {
+        const value = this.input.value.trim();
+        if (!value) return;
+        
+        // Validate and clean the input
+        let cleanedValue = this.validateAndClean(value);
+        if (!cleanedValue) return;
+        
+        // Check for duplicates
+        if (this.tags.includes(cleanedValue)) {
+            this.showError('This item is already added');
+            this.input.value = '';
+            return;
+        }
+        
+        // Add tag
+        this.tags.push(cleanedValue);
+        this.updateHiddenField();
+        this.renderTags();
+        this.input.value = '';
+        this.clearError();
+    }
+    
+    validateAndClean(value) {
+        if (this.type === 'follower') {
+            // Handle profile URLs
+            if (value.startsWith('https://twitter.com/') || value.startsWith('https://x.com/')) {
+                const match = value.match(/https?:\/\/(twitter\.com|x\.com)\/([A-Za-z0-9_]{1,15})/);
+                if (match) {
+                    return match[2]; // Return username
+                } else {
+                    this.showError('Invalid Twitter profile URL');
+                    return null;
+                }
+            }
+            
+            // Handle usernames
+            const username = value.replace(/^@/, '');
+            if (/^[A-Za-z0-9_]{1,15}$/.test(username)) {
+                return username;
+            } else {
+                this.showError('Invalid username format');
+                return null;
+            }
+        } else if (this.type === 'post') {
+            // Validate post URL
+            if (/https?:\/\/(twitter\.com|x\.com)\/.+\/status\/\d+/.test(value)) {
+                return value;
+            } else {
+                this.showError('Invalid Twitter post URL');
+                return null;
+            }
+        }
+        
+        return value;
+    }
+    
+    removeTag(index) {
+        this.tags.splice(index, 1);
+        this.updateHiddenField();
+        this.renderTags();
+    }
+    
+    renderTags() {
+        this.tagsContainer.innerHTML = '';
+        
+        if (this.tags.length === 0) {
+            this.tagsContainer.innerHTML = '<span class="text-gray-500 text-sm">No sources added yet</span>';
+            return;
+        }
+        
+        this.tags.forEach((tag, index) => {
+            const tagElement = document.createElement('div');
+            tagElement.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium';
+            
+            if (this.type === 'follower') {
+                tagElement.className += ' bg-purple-500/20 text-purple-300 border border-purple-500/30';
+            } else {
+                tagElement.className += ' bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+            }
+            
+            tagElement.innerHTML = `
+                <span>${this.type === 'follower' ? '@' : ''}${tag}</span>
+                <button type="button" onclick="this.parentElement.remove(); tagManagers['${this.type}'].removeTag(${index});" 
+                        class="ml-1 hover:bg-white/20 rounded-full p-1 transition-colors">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            `;
+            
+            this.tagsContainer.appendChild(tagElement);
+        });
+    }
+    
+    updateHiddenField() {
+        this.hiddenField.value = this.tags.join('\n');
+    }
+    
+    showError(message) {
+        this.clearError();
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'mt-2 text-red-400 text-sm';
+        errorDiv.textContent = message;
+        this.input.parentNode.appendChild(errorDiv);
+        this.input.classList.add('border-red-500');
+    }
+    
+    clearError() {
+        const existingError = this.input.parentNode.querySelector('.text-red-400');
+        if (existingError) {
+            existingError.remove();
+        }
+        this.input.classList.remove('border-red-500');
+    }
+}
+
+// Initialize tag managers when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.tagManagers = {
+        follower: new TagManager('follower-input', 'follower-tags', 'target_usernames_hidden', 'follower'),
+        post: new TagManager('post-input', 'post-tags', 'target_post_urls_hidden', 'post')
+    };
+});
+
+// Form submission handling
+document.getElementById('edit-form').addEventListener('submit', function(e) {
+    const btn = document.getElementById('submit-btn');
+    const originalHtml = btn.innerHTML;
+    
+    // Update button to show loading
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving Changes...';
+    btn.disabled = true;
+    
+    // Re-enable button after form submission (in case of validation errors)
+    setTimeout(() => {
+        if (btn.disabled) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }, 10000);
+});
+</script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

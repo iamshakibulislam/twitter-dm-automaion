@@ -1,0 +1,131 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Delete {{ lead_list.name }} — Lead Builder{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold glow-text">Delete Lead List ⚠️</h1>
+            <div class="text-sm text-slate-400 mt-1">Permanently remove this lead list</div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'lead_builder_detail' lead_list.id %}" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Details
+            </a>
+        </div>
+    </div>
+
+    <div class="max-w-2xl mx-auto">
+        <div class="p-8 rounded-2xl neon-border bg-neutral-800/40">
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-400"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Confirm Lead List Deletion</h2>
+                <p class="text-slate-400">This action cannot be undone</p>
+            </div>
+
+            <!-- Lead List Summary -->
+            <div class="bg-neutral-900/50 rounded-xl p-6 mb-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-cyan-400 rounded-full flex items-center justify-center">
+                        <i class="fas fa-bullseye text-white text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-semibold text-white text-lg">{{ lead_list.name }}</div>
+                        {% if lead_list.description %}
+                            <div class="text-sm text-slate-400 mb-2">{{ lead_list.description }}</div>
+                        {% endif %}
+                        
+                        <div class="grid grid-cols-2 gap-4 mt-4">
+                            <div class="text-center p-3 rounded-lg bg-purple-500/10">
+                                <div class="text-sm text-purple-400">Collected Leads</div>
+                                <div class="text-xl font-semibold text-white">{{ lead_list.total_collected|floatformat:0 }}</div>
+                            </div>
+                            <div class="text-center p-3 rounded-lg bg-cyan-500/10">
+                                <div class="text-sm text-cyan-400">Status</div>
+                                <div class="text-xl font-semibold text-white">{{ lead_list.get_status_display }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-xs text-slate-500 mt-3">
+                            Created {{ lead_list.created_at|timesince }} ago
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning Information -->
+            <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+                <h3 class="text-red-400 font-semibold mb-2 flex items-center">
+                    <i class="fas fa-warning mr-2"></i>
+                    What will be deleted:
+                </h3>
+                <ul class="text-red-200 text-sm space-y-1">
+                    <li>• The lead list configuration and all settings</li>
+                    <li>• All {{ lead_list.total_collected|floatformat:0 }} collected lead profiles</li>
+                    <li>• Collection progress and processing history</li>
+                    <li>• Any ongoing collection will be stopped immediately</li>
+                    <li>• Exported CSV files will remain but won't be updated</li>
+                </ul>
+            </div>
+
+            <!-- Additional Impact Warning -->
+            {% if lead_list.status == 'COLLECTING' %}
+                <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-sync fa-spin text-yellow-400 mr-2"></i>
+                        <div>
+                            <div class="text-yellow-400 font-semibold">Active Collection Warning</div>
+                            <div class="text-yellow-200 text-sm">This lead list is currently collecting data. Deletion will immediately stop all collection processes.</div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Confirmation Form -->
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                
+                <!-- Confirmation Checkbox -->
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" id="confirm-delete" class="mt-1 rounded bg-neutral-700 border-neutral-600 text-red-500 focus:ring-red-500 focus:ring-2">
+                    <div class="text-sm text-slate-300">
+                        I understand that this action is permanent and cannot be undone. I want to delete "<strong>{{ lead_list.name }}</strong>" and all {{ lead_list.total_collected|floatformat:0 }} collected leads.
+                    </div>
+                </label>
+                
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-4 pt-4">
+                    <button type="submit" id="delete-btn" disabled 
+                            class="flex-1 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 disabled:cursor-not-allowed transition-colors text-white font-medium">
+                        <i class="fas fa-trash mr-2"></i>Yes, Delete Lead List
+                    </button>
+                    <a href="{% url 'lead_builder_detail' lead_list.id %}" 
+                       class="flex-1 px-6 py-3 rounded-xl bg-gray-600 hover:bg-gray-700 transition-colors text-white font-medium text-center">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enable delete button only when checkbox is checked
+document.getElementById('confirm-delete').addEventListener('change', function() {
+    const deleteBtn = document.getElementById('delete-btn');
+    deleteBtn.disabled = !this.checked;
+});
+
+// Show loading state on form submission
+document.querySelector('form').addEventListener('submit', function(e) {
+    const deleteBtn = document.getElementById('delete-btn');
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Deleting...';
+    deleteBtn.disabled = true;
+});
+</script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

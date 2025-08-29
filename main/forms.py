@@ -1,8 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from .models import TwitterAccount
+from .models import TwitterAccount, LeadList
 import json
+import re
 
 class SignUpForm(UserCreationForm):
     """Custom signup form with email and first name"""
@@ -135,6 +136,206 @@ class TwitterAccountForm(forms.ModelForm):
             twitter_account.save()
         
         return twitter_account
+
+class LeadListForm(forms.ModelForm):
+    """Form for creating and editing lead lists"""
+    
+    # Target configuration
+    target_usernames_text = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={
+            'id': 'target_usernames_hidden'
+        }),
+        help_text='Twitter usernames or profile URLs to target their followers'
+    )
+    
+    target_post_urls_text = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={
+            'id': 'target_post_urls_hidden'
+        }),
+        help_text='Twitter post URLs to target users who commented on these posts'
+    )
+    
+    # Filtering criteria
+    locations_text = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white placeholder-gray-400',
+            'placeholder': 'Enter locations to filter by (one per line)\nExample:\nNew York\nLondon\nTokyo',
+            'rows': 4
+        }),
+        help_text='Filter users by location (leave empty to include all locations)'
+    )
+    
+    bio_keywords_text = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white placeholder-gray-400',
+            'placeholder': 'Enter keywords to match in bio (one per line)\nExample:\nentrepreneur\nfounder\nCEO',
+            'rows': 4
+        }),
+        help_text='Include users whose bio contains any of these keywords'
+    )
+    
+    exclude_keywords_text = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white placeholder-gray-400',
+            'placeholder': 'Enter keywords to exclude from bio (one per line)\nExample:\nbot\nspam\nfake',
+            'rows': 4
+        }),
+        help_text='Exclude users whose bio contains any of these keywords'
+    )
+    
+    class Meta:
+        model = LeadList
+        fields = ['name', 'description', 'min_followers', 'max_followers', 'max_leads']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white placeholder-gray-400',
+                'placeholder': 'Enter a name for your lead list'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white placeholder-gray-400',
+                'placeholder': 'Describe this lead list (optional)',
+                'rows': 3
+            }),
+
+            'min_followers': forms.NumberInput(attrs={
+                'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white',
+                'min': 0,
+                'placeholder': '0'
+            }),
+            'max_followers': forms.NumberInput(attrs={
+                'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white',
+                'min': 1,
+                'placeholder': '1000000'
+            }),
+            'max_leads': forms.NumberInput(attrs={
+                'class': 'mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 bg-neutral-800/50 text-white',
+                'min': 1,
+                'max': 1000000,
+                'placeholder': '1000'
+            })
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            # Populate text fields from JSON data
+            self.fields['target_usernames_text'].initial = '\n'.join(self.instance.target_usernames)
+            self.fields['target_post_urls_text'].initial = '\n'.join(self.instance.target_post_urls)
+            self.fields['locations_text'].initial = '\n'.join(self.instance.locations)
+            self.fields['bio_keywords_text'].initial = '\n'.join(self.instance.bio_keywords)
+            self.fields['exclude_keywords_text'].initial = '\n'.join(self.instance.exclude_keywords)
+    
+    def clean_target_usernames_text(self):
+        """Clean and validate usernames and profile URLs"""
+        text = self.cleaned_data.get('target_usernames_text', '').strip()
+        if not text:
+            return []
+        
+        usernames = []
+        for line in text.split('\n'):
+            item = line.strip()
+            if item:
+                # Check if it's a profile URL
+                if item.startswith(('https://twitter.com/', 'https://x.com/')):
+                    # Extract username from profile URL
+                    match = re.search(r'https?://(twitter\.com|x\.com)/([A-Za-z0-9_]{1,15})', item)
+                    if match:
+                        username = match.group(2)
+                        usernames.append(username)
+                    else:
+                        raise forms.ValidationError(f'Invalid Twitter profile URL: {item}')
+                else:
+                    # Treat as username
+                    username = item.lstrip('@')
+                    # Basic validation
+                    if not re.match(r'^[A-Za-z0-9_]{1,15}$', username):
+                        raise forms.ValidationError(f'Invalid username format: {username}')
+                    usernames.append(username)
+        
+        return usernames
+    
+    def clean_target_post_urls_text(self):
+        """Clean and validate post URLs"""
+        text = self.cleaned_data.get('target_post_urls_text', '').strip()
+        if not text:
+            return []
+        
+        urls = []
+        for line in text.split('\n'):
+            url = line.strip()
+            if url:
+                # Validate Twitter URL format
+                if not re.match(r'^https?://(twitter\.com|x\.com)/.+/status/\d+', url):
+                    raise forms.ValidationError(f'Invalid Twitter post URL: {url}')
+                urls.append(url)
+        
+        return urls
+    
+    def clean_locations_text(self):
+        """Clean locations list"""
+        text = self.cleaned_data.get('locations_text', '').strip()
+        if not text:
+            return []
+        
+        return [line.strip() for line in text.split('\n') if line.strip()]
+    
+    def clean_bio_keywords_text(self):
+        """Clean bio keywords list"""
+        text = self.cleaned_data.get('bio_keywords_text', '').strip()
+        if not text:
+            return []
+        
+        return [line.strip().lower() for line in text.split('\n') if line.strip()]
+    
+    def clean_exclude_keywords_text(self):
+        """Clean exclude keywords list"""
+        text = self.cleaned_data.get('exclude_keywords_text', '').strip()
+        if not text:
+            return []
+        
+        return [line.strip().lower() for line in text.split('\n') if line.strip()]
+    
+    def clean(self):
+        """Validate the form data"""
+        cleaned_data = super().clean()
+        
+        target_usernames = cleaned_data.get('target_usernames_text', [])
+        target_post_urls = cleaned_data.get('target_post_urls_text', [])
+        
+        # At least one source must be specified
+        if not target_usernames and not target_post_urls:
+            raise forms.ValidationError('You must specify at least one Twitter username or post URL to target.')
+        
+        # Validate follower range
+        min_followers = cleaned_data.get('min_followers', 0)
+        max_followers = cleaned_data.get('max_followers', 1000000)
+        
+        if min_followers >= max_followers:
+            raise forms.ValidationError('Minimum followers must be less than maximum followers.')
+        
+        return cleaned_data
+    
+    def save(self, user, commit=True):
+        """Save the lead list with processed data"""
+        lead_list = super().save(commit=False)
+        lead_list.user = user
+        
+        # Convert text inputs to JSON lists using the cleaned data
+        lead_list.target_usernames = self.cleaned_data.get('target_usernames_text', [])
+        lead_list.target_post_urls = self.cleaned_data.get('target_post_urls_text', [])
+        lead_list.locations = self.cleaned_data.get('locations_text', [])
+        lead_list.bio_keywords = self.cleaned_data.get('bio_keywords_text', [])
+        lead_list.exclude_keywords = self.cleaned_data.get('exclude_keywords_text', [])
+        
+        if commit:
+            lead_list.save()
+        
+        return lead_list
 
 class LoginForm(forms.Form):
     """Custom login form with email and password"""

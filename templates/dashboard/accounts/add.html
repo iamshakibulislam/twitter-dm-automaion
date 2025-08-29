@@ -65,48 +65,80 @@
                 <div class="p-6 rounded-2xl neon-border bg-neutral-800/40">
                     <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
                         <i class="fas fa-info-circle mr-2 text-blue-400"></i>
-                        How to Get Your Cookies
+                        How to Get Your Twitter Cookies
                     </h2>
                     
                     <div class="space-y-4 text-sm text-slate-300">
                         <div class="flex items-start gap-3">
                             <span class="flex-shrink-0 w-6 h-6 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center font-bold">1</span>
                             <div>
-                                <div class="font-medium">Open Twitter in Chrome/Firefox</div>
-                                <div class="text-slate-400">Go to x.com and make sure you're logged in</div>
+                                <div class="font-medium">Install Cookie-Editor Extension</div>
+                                <div class="text-slate-400 mb-2">Install the Cookie-Editor Chrome extension from the Chrome Web Store</div>
+                                <a href="https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" 
+                                   target="_blank" 
+                                   class="inline-flex items-center px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs transition-colors">
+                                    <i class="fas fa-external-link-alt mr-1"></i>
+                                    Install Cookie-Editor
+                                </a>
                             </div>
                         </div>
                         
                         <div class="flex items-start gap-3">
                             <span class="flex-shrink-0 w-6 h-6 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center font-bold">2</span>
                             <div>
-                                <div class="font-medium">Open Developer Tools</div>
-                                <div class="text-slate-400">Press F12 or right-click → Inspect</div>
+                                <div class="font-medium">Login to Twitter</div>
+                                <div class="text-slate-400">Go to <code class="bg-slate-700 px-1 rounded">x.com</code> and make sure you're logged into your Twitter account</div>
                             </div>
                         </div>
                         
                         <div class="flex items-start gap-3">
                             <span class="flex-shrink-0 w-6 h-6 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center font-bold">3</span>
                             <div>
-                                <div class="font-medium">Go to Application/Storage Tab</div>
-                                <div class="text-slate-400">Click on "Application" (Chrome) or "Storage" (Firefox)</div>
+                                <div class="font-medium">Open Cookie-Editor</div>
+                                <div class="text-slate-400">Click on the Cookie-Editor extension icon in your browser toolbar</div>
                             </div>
                         </div>
                         
                         <div class="flex items-start gap-3">
                             <span class="flex-shrink-0 w-6 h-6 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center font-bold">4</span>
                             <div>
-                                <div class="font-medium">Find Cookies</div>
-                                <div class="text-slate-400">Expand "Cookies" → "https://x.com"</div>
+                                <div class="font-medium">Export Cookies as JSON</div>
+                                <div class="text-slate-400">
+                                    • Click the <strong>Export</strong> icon (arrow pointing up) in the Cookie-Editor popup<br>
+                                    • Select <strong>"Export as JSON"</strong> from the dropdown menu<br>
+                                    • Copy the JSON data that appears
+                                </div>
                             </div>
                         </div>
                         
                         <div class="flex items-start gap-3">
                             <span class="flex-shrink-0 w-6 h-6 bg-purple-500 rounded-full text-white text-xs flex items-center justify-center font-bold">5</span>
                             <div>
-                                <div class="font-medium">Export Cookies</div>
-                                <div class="text-slate-400">Use a browser extension like "Cookie Editor" to export as JSON</div>
+                                <div class="font-medium">Paste JSON Data</div>
+                                <div class="text-slate-400">Paste the copied JSON data into the textarea above and click "Add Twitter Account"</div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Visual Guide -->
+                <div class="p-6 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+                    <h3 class="text-lg font-semibold mb-3 text-blue-400 flex items-center">
+                        <i class="fas fa-play-circle mr-2"></i>
+                        Quick Visual Guide
+                    </h3>
+                    <div class="space-y-3 text-sm text-blue-200">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-arrow-right text-blue-400"></i>
+                            <span>After installing Cookie-Editor, you'll see a cookie icon in your browser</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-arrow-right text-blue-400"></i>
+                            <span>On x.com, click the cookie icon → Export → "Export as JSON"</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-arrow-right text-blue-400"></i>
+                            <span>The JSON will contain all cookies including the required auth_token and ct0</span>
                         </div>
                     </div>
                 </div>
