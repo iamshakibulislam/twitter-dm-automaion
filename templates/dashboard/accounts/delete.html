@@ -1,0 +1,91 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Delete Twitter Account — XOutreacher{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold glow-text">Delete Twitter Account ⚠️</h1>
+            <div class="text-sm text-slate-400 mt-1">Confirm account removal</div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'accounts_list' %}" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Accounts
+            </a>
+        </div>
+    </div>
+
+    <div class="max-w-2xl mx-auto">
+        <div class="p-8 rounded-2xl neon-border bg-neutral-800/40">
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-400"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Confirm Account Deletion</h2>
+                <p class="text-slate-400">This action cannot be undone</p>
+            </div>
+
+            <div class="bg-neutral-900/50 rounded-xl p-6 mb-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center">
+                        <i class="fab fa-twitter text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-white">
+                            {% if account.display_name %}
+                                {{ account.display_name }}
+                            {% else %}
+                                Twitter Account
+                            {% endif %}
+                        </div>
+                        <div class="text-sm text-slate-400">
+                            {% if account.username %}
+                                @{{ account.username }}
+                            {% else %}
+                                Account #{{ account.id }}
+                            {% endif %}
+                        </div>
+                        <div class="text-xs text-slate-500 mt-1">
+                            Added: {{ account.created_at|date:"M d, Y" }}
+                        </div>
+                    </div>
+                    <div class="ml-auto">
+                        {% if account.is_verified %}
+                            <span class="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs">
+                                <i class="fas fa-check-circle mr-1"></i>Verified
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs">
+                                <i class="fas fa-exclamation-circle mr-1"></i>Unverified
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+                <h3 class="text-red-400 font-semibold mb-2">What will happen:</h3>
+                <ul class="text-red-200 text-sm space-y-1">
+                    <li>• The Twitter account will be disconnected from your dashboard</li>
+                    <li>• All stored authentication data will be permanently deleted</li>
+                    <li>• Active campaigns using this account will be paused</li>
+                    <li>• You'll need to re-add the account if you want to use it again</li>
+                </ul>
+            </div>
+
+            <form method="post" class="flex items-center gap-4">
+                {% csrf_token %}
+                <button type="submit" class="flex-1 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 transition-colors text-white font-medium">
+                    <i class="fas fa-trash mr-2"></i>Yes, Delete Account
+                </button>
+                <a href="{% url 'accounts_list' %}" class="flex-1 px-6 py-3 rounded-xl bg-gray-600 hover:bg-gray-700 transition-colors text-white font-medium text-center">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}

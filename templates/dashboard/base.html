@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{% block title %}Twitter Outreach Tool{% endblock %}</title>
+<!-- Tailwind CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{
+--neon-start: #7c3aed;
+--neon-end: #06b6d4;
+}
+.neon-border{
+box-shadow: 0 0 18px rgba(124,58,237,0.25), inset 0 0 24px rgba(6,182,212,0.04);
+border: 1px solid rgba(124,58,237,0.25);
+}
+.glow-text{ text-shadow: 0 2px 14px rgba(124,58,237,0.18); }
+::-webkit-scrollbar{ width:10px; height:10px }
+::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.06); border-radius:999px }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body class="bg-neutral-900 text-slate-200 antialiased">
+<div id="root" class="h-screen flex">
+<!-- Sidebar -->
+<aside class="w-72 bg-gradient-to-b from-neutral-900/70 to-neutral-900/40 border-r border-white/5 p-4 flex flex-col gap-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 flex items-center justify-center rounded-2xl bg-gradient-to-br from-purple-700 to-cyan-500 neon-border">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 12h6l2 9 2-18 2 9h6" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+<div>
+<div class="text-xl font-semibold">T-Outreach</div>
+<div class="text-xs text-slate-400">Automate • Reach • Convert</div>
+</div>
+</div>
+
+
+<nav class="flex-1">
+<a href="{% url 'dashboard' %}" class="block py-2 px-3 rounded-xl hover:bg-white/5">Dashboard</a>
+<a href="/lead-builder" class="block py-2 px-3 rounded-xl hover:bg-white/5">Lead Builder</a>
+<a href="/campaigns" class="block py-2 px-3 rounded-xl hover:bg-white/5">Campaigns</a>
+<a href="/inbox" class="block py-2 px-3 rounded-xl hover:bg-white/5">Inbox</a>
+<a href="/accounts" class="block py-2 px-3 rounded-xl hover:bg-white/5">Accounts</a>
+<a href="/settings" class="block py-2 px-3 rounded-xl hover:bg-white/5">Settings</a>
+</nav>
+
+
+<div class="mt-auto">
+<div class="text-xs text-slate-400 mb-3">Connected Accounts</div>
+<div class="flex flex-wrap gap-2">
+<div class="px-3 py-1 rounded-full bg-white/5 text-sm">@brand_ops</div>
+<div class="px-3 py-1 rounded-full bg-white/5 text-sm">@sales_auto</div>
+</div>
+</div>
+</aside>
+
+
+<!-- Content Area -->
+<div class="flex-1 flex flex-col">
+<header class="flex items-center justify-between px-6 py-4 border-b border-white/5 backdrop-blur-sm bg-neutral-900/70">
+<div class="flex items-center gap-4">
+<input type="text" placeholder="Search..." class="bg-transparent border border-white/10 px-4 py-2 rounded-2xl w-80 placeholder:text-slate-400 focus:outline-none" />
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<img src="https://i.pravatar.cc/32?img=1" class="w-8 h-8 rounded-full"/>
+<div class="text-sm">{{ user.first_name }}</div>
+</div>
+<a href="{% url 'logout' %}" class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">Logout</a>
+</div>
+</header>
+
+<!-- Main Content -->
+<main class="flex-1 overflow-auto">
+{% block content %}{% endblock %}
+</main>
+</div>
+</div>
+</body>
+</html>

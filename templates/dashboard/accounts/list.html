@@ -1,0 +1,178 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Twitter Accounts — XOutreacher{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold glow-text">Twitter Accounts 🐦</h1>
+            <div class="text-sm text-slate-400 mt-1">Manage your connected Twitter accounts</div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'accounts_add' %}" class="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 shadow-md hover:from-purple-700 hover:to-cyan-600 transition-all">
+                <i class="fas fa-plus mr-2"></i>Add Account
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-4 rounded-xl {% if message.tags == 'error' %}bg-red-500/20 border border-red-500/30 text-red-200{% elif message.tags == 'success' %}bg-green-500/20 border border-green-500/30 text-green-200{% else %}bg-blue-500/20 border border-blue-500/30 text-blue-200{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if accounts %}
+        <!-- Accounts Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for account in accounts %}
+            <div class="p-6 rounded-2xl neon-border bg-neutral-800/40 hover:bg-neutral-800/60 transition-all">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center">
+                            <i class="fab fa-twitter text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-white">
+                                {% if account.display_name %}
+                                    {{ account.display_name }}
+                                {% else %}
+                                    Twitter Account
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-slate-400">
+                                {% if account.username %}
+                                    @{{ account.username }}
+                                {% else %}
+                                    Account #{{ account.id }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if account.is_verified %}
+                            <span class="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs">
+                                <i class="fas fa-check-circle mr-1"></i>Verified
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs">
+                                <i class="fas fa-exclamation-circle mr-1"></i>Unverified
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="space-y-2 mb-4">
+                    <div class="text-sm text-slate-400">
+                        <i class="fas fa-calendar-plus mr-2"></i>
+                        Added: {{ account.created_at|date:"M d, Y" }}
+                    </div>
+                    {% if account.last_verified %}
+                        <div class="text-sm text-slate-400">
+                            <i class="fas fa-sync mr-2"></i>
+                            Last verified: {{ account.last_verified|date:"M d, Y g:i A" }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-white/10">
+                    <button 
+                        onclick="testConnection({{ account.id }})"
+                        id="test-btn-{{ account.id }}"
+                        class="px-3 py-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors">
+                        <i class="fas fa-sync mr-1"></i>Test
+                    </button>
+                    <div class="flex items-center gap-2">
+                        {% if account.is_active %}
+                            <span class="text-green-400">
+                                <i class="fas fa-circle text-xs"></i>
+                            </span>
+                        {% else %}
+                            <span class="text-gray-400">
+                                <i class="fas fa-circle text-xs"></i>
+                            </span>
+                        {% endif %}
+                        <a href="{% url 'accounts_delete' account.id %}" 
+                           class="px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-12">
+            <div class="w-24 h-24 bg-gradient-to-br from-purple-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fab fa-twitter text-4xl text-slate-400"></i>
+            </div>
+            <h3 class="text-xl font-semibold text-white mb-2">No Twitter Accounts Connected</h3>
+            <p class="text-slate-400 mb-6 max-w-md mx-auto">
+                Connect your Twitter accounts using cookies to start automating your outreach campaigns.
+            </p>
+            <a href="{% url 'accounts_add' %}" class="inline-flex items-center px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 transition-all">
+                <i class="fas fa-plus mr-2"></i>Add Your First Account
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+async function testConnection(accountId) {
+    const btn = document.getElementById(`test-btn-${accountId}`);
+    const originalHtml = btn.innerHTML;
+    
+    // Update button to show loading
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Testing...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/accounts/${accountId}/test/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show success message
+            showMessage(data.message, 'success');
+            // Reload page to show updated status
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showMessage(data.message, 'error');
+        }
+    } catch (error) {
+        showMessage('❌ Error testing connection: ' + error.message, 'error');
+    } finally {
+        // Restore button
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
+function showMessage(message, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `fixed top-4 right-4 p-4 rounded-xl z-50 transition-all ${
+        type === 'success' ? 'bg-green-500/20 border border-green-500/30 text-green-200' : 
+        'bg-red-500/20 border border-red-500/30 text-red-200'
+    }`;
+    messageDiv.textContent = message;
+    
+    document.body.appendChild(messageDiv);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+}
+</script>
+
+<!-- Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
