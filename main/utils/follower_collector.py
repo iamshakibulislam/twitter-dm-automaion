@@ -634,6 +634,10 @@ def collect_followers_with_subprocess(username: str, twitter_account: TwitterAcc
         if verbose:
             print(f"      🔑 Current cursor for @{username}: {current_cursor}")
             print(f"      📊 Already collected: {user_state.get('collected', 0)} followers")
+            print(f"      🔍 Applying filters: min_followers={lead_list.min_followers}, max_followers={lead_list.max_followers}")
+            print(f"      📍 Location filters: {lead_list.locations or 'None'}")
+            print(f"      🔑 Bio keywords: {lead_list.bio_keywords or 'None'}")
+            print(f"      ❌ Exclude keywords: {lead_list.exclude_keywords or 'None'}")
         
         # Create a temporary Python script to run twikit
         script_content = f'''
@@ -648,6 +652,45 @@ if sys.platform == 'win32':
     os.environ['PYTHONIOENCODING'] = 'utf-8'
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
+
+def matches_filters(follower_data, filters):
+    """Check if follower matches all configured filters"""
+    # Follower count filter
+    if follower_data['followers_count'] < filters['min_followers']:
+        return False, "follower_count_too_low"
+    if follower_data['followers_count'] > filters['max_followers']:
+        return False, "follower_count_too_high"
+    
+    # Location filter
+    if filters['locations']:
+        follower_location = follower_data['location'].lower() if follower_data['location'] else ""
+        location_match = False
+        for target_location in filters['locations']:
+            if target_location.lower() in follower_location:
+                location_match = True
+                break
+        if not location_match:
+            return False, "location_mismatch"
+    
+    # Bio keywords filter (include)
+    if filters['bio_keywords']:
+        follower_bio = follower_data['bio'].lower() if follower_data['bio'] else ""
+        bio_match = False
+        for keyword in filters['bio_keywords']:
+            if keyword.lower() in follower_bio:
+                bio_match = True
+                break
+        if not bio_match:
+            return False, "bio_keywords_mismatch"
+    
+    # Bio keywords filter (exclude)
+    if filters['exclude_keywords']:
+        follower_bio = follower_data['bio'].lower() if follower_data['bio'] else ""
+        for keyword in filters['exclude_keywords']:
+            if keyword.lower() in follower_bio:
+                return False, "exclude_keyword_found"
+    
+    return True, "passed"
 
 async def collect_followers():
     try:
@@ -664,7 +707,17 @@ async def collect_followers():
         except Exception as e:
             return {{"error": f"Error accessing user: {{str(e)}}"}}
         
+        # Define filters
+        filters = {{
+            'min_followers': {lead_list.min_followers},
+            'max_followers': {lead_list.max_followers},
+            'locations': {json.dumps(lead_list.locations or [])},
+            'bio_keywords': {json.dumps(lead_list.bio_keywords or [])},
+            'exclude_keywords': {json.dumps(lead_list.exclude_keywords or [])}
+        }}
+        
         collected = []
+        filtered_out = 0
         CHUNK_SIZE = 1000   # fetch up to 1000 followers per run
         
         # Get the saved cursor - passed as a string
@@ -692,7 +745,7 @@ async def collect_followers():
         next_cursor = result.next_cursor
         
         if not followers:
-            return {{"success": True, "followers": [], "count": 0}}
+            return {{"success": True, "followers": [], "count": 0, "next_cursor": None, "filtered_out": 0}}
         
         # Process first page
         for f in followers:
@@ -716,7 +769,14 @@ async def collect_followers():
                     'pagination_cursor': str(next_cursor) if next_cursor else None,
                     'pagination_collected': len(collected) + 1
                 }}
-                collected.append(follower_data)
+                
+                # Apply filters
+                matches, reason = matches_filters(follower_data, filters)
+                if matches:
+                    collected.append(follower_data)
+                else:
+                    filtered_out += 1
+                    
             except Exception as e:
                 # Skip problematic followers
                 continue
@@ -757,7 +817,14 @@ async def collect_followers():
                             'pagination_cursor': str(next_cursor) if next_cursor else None,
                             'pagination_collected': len(collected) + 1
                         }}
-                        collected.append(follower_data)
+                        
+                        # Apply filters
+                        matches, reason = matches_filters(follower_data, filters)
+                        if matches:
+                            collected.append(follower_data)
+                        else:
+                            filtered_out += 1
+                            
                     except Exception as e:
                         # Skip problematic followers
                         continue
@@ -765,11 +832,14 @@ async def collect_followers():
             except Exception as e:
                 break
         
+        print(f"Collected {{len(collected)}} followers (filtered out {{filtered_out}}). Next cursor: {{next_cursor}}")
+        
         return {{
             "success": True, 
             "followers": collected, 
             "count": len(collected), 
-            "next_cursor": str(next_cursor) if next_cursor else None
+            "next_cursor": str(next_cursor) if next_cursor else None,
+            "filtered_out": filtered_out
         }}
         
     except Exception as e:
@@ -828,10 +898,13 @@ except UnicodeEncodeError:
                     if data.get('success'):
                         followers = data.get('followers', [])
                         next_cursor = data.get('next_cursor')
+                        filtered_out = data.get('filtered_out', 0)
                         
                         if verbose:
                             print(f"      ✅ Collected {len(followers)} followers from @{username}")
                             print(f"      🔑 Next cursor: {next_cursor}")
+                            if filtered_out > 0:
+                                print(f"      🚫 Filtered out {filtered_out} followers")
                         
                         return followers
                     else:
