@@ -126,14 +126,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Django-crontab settings
 CRONJOBS = [
-    # Lead collection every 20 minutes - calls synchronous function directly
-    ('*/20 * * * *', 'main.utils.lead_collection_sync.collect_leads', {'max_lists': 5, 'verbose': False}),
+    # Lead collection every 20 minutes - using new simple system
+    ('*/20 * * * *', 'main.utils.follower_collector.collect_followers_cron', {'verbose': False}),
     
-    # Hourly lead collection with force flag (backup) - calls synchronous function directly  
-    ('0 * * * *', 'main.utils.lead_collection_sync.collect_leads', {'max_lists': 10, 'force': True, 'verbose': False}),
+    # Hourly lead collection with force flag (backup)
+    ('0 * * * *', 'main.utils.follower_collector.collect_followers_cron', {'verbose': False}),
     
     # Daily cleanup at 3 AM
-    ('0 3 * * *', 'main.utils.lead_collection_sync.collect_leads', {'cleanup': True, 'verbose': False}),
+    ('0 3 * * *', 'main.utils.follower_collector.collect_followers_cron', {'verbose': False}),
 ]
 
 # Crontab lock to prevent overlapping jobs

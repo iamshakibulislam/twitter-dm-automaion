@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 import json
 
@@ -145,6 +145,23 @@ class LeadList(models.Model):
         if new_estimate > self.estimated_total_leads:
             self.estimated_total_leads = new_estimate
             self.save(update_fields=['estimated_total_leads'])
+    
+    def delete(self, *args, **kwargs):
+        """Custom delete method to ensure proper cleanup of leads"""
+        # Get the count of leads that will be deleted
+        lead_count = self.leads.count()
+        
+        # Call the parent delete method (this will cascade delete all leads)
+        result = super().delete(*args, **kwargs)
+        
+        # Log the deletion if possible
+        try:
+            from django.contrib import messages
+            messages.success(None, f"Deleted Lead List '{self.name}' and {lead_count} associated leads.")
+        except:
+            pass  # If messages framework is not available, just continue
+        
+        return result
 
 class Lead(models.Model):
     """Individual lead profile"""
@@ -191,3 +208,9 @@ def create_user_profile(sender, instance, created, **kwargs):
 def save_user_profile(sender, instance, **kwargs):
     """Save user profile when user is saved"""
     instance.profile.save()
+
+@receiver(pre_delete, sender=LeadList)
+def log_lead_list_deletion(sender, instance, **kwargs):
+    """Log when a LeadList is being deleted"""
+    lead_count = instance.leads.count()
+    print(f"🗑️  Deleting Lead List '{instance.name}' with {lead_count} associated leads")

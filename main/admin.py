@@ -62,6 +62,41 @@ class LeadListAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def delete_model(self, request, obj):
+        """Custom delete method to ensure proper cleanup"""
+        # Get the count of leads that will be deleted
+        lead_count = obj.leads.count()
+        
+        # Delete the lead list (this will cascade delete all leads)
+        obj.delete()
+        
+        # Log the deletion
+        self.message_user(
+            request, 
+            f"Successfully deleted Lead List '{obj.name}' and {lead_count} associated leads.",
+            level='SUCCESS'
+        )
+    
+    def delete_queryset(self, request, queryset):
+        """Custom delete method for bulk deletions"""
+        total_leads = 0
+        lead_list_names = []
+        
+        # Count total leads and collect names
+        for lead_list in queryset:
+            total_leads += lead_list.leads.count()
+            lead_list_names.append(lead_list.name)
+        
+        # Delete the lead lists (this will cascade delete all leads)
+        queryset.delete()
+        
+        # Log the bulk deletion
+        self.message_user(
+            request, 
+            f"Successfully deleted {len(lead_list_names)} Lead Lists ({', '.join(lead_list_names)}) and {total_leads} associated leads.",
+            level='SUCCESS'
+        )
 
 @admin.register(Lead)
 class LeadAdmin(admin.ModelAdmin):
