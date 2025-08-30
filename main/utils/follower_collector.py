@@ -551,6 +551,20 @@ def process_lead_list_sync(lead_list: LeadList, verbose: bool = True) -> Dict[st
         # Update final status - check if we can collect more
         lead_list.total_collected = Lead.objects.filter(lead_list=lead_list).count()
         
+        # Update estimated total leads based on pagination state
+        total_estimated = 0
+        pagination_state = lead_list.pagination_state or {}
+        for username, state in pagination_state.items():
+            if state.get('has_more'):
+                # If we have more pages, estimate at least 10x current collected
+                total_estimated += max(state.get('collected', 0) * 10, 10000)
+            else:
+                # If completed, use actual collected count
+                total_estimated += state.get('collected', 0)
+        
+        if total_estimated > 0:
+            lead_list.estimated_total_leads = total_estimated
+        
         # Check if we have more pages available for any username
         has_more_pages = False
         if all_followers_data:
@@ -907,11 +921,16 @@ def _update_pagination_state(lead_list: LeadList, followers_data: List[Dict], ve
             if followers:
                 last_follower = followers[-1]
                 cursor = last_follower.get('pagination_cursor')
-                collected = last_follower.get('pagination_collected', 0)
+                
+                # Get actual collected count from database for this username
+                collected_count = Lead.objects.filter(
+                    lead_list=lead_list,
+                    source_reference=username
+                ).count()
                 
                 pagination_state[username] = {
                     'cursor': cursor,
-                    'collected': collected,
+                    'collected': collected_count,
                     'has_more': cursor is not None,
                     'last_updated': timezone.now().isoformat()
                 }

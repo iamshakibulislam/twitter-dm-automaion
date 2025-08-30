@@ -317,7 +317,7 @@ def lead_builder_list(request):
         lead_list.progress_percentage = lead_list.get_progress_percentage()
         lead_list.progress_display = lead_list.get_progress_display()
         # Calculate total sources count
-        lead_list.total_sources = len(lead_list.target_usernames or []) + len(lead_list.target_post_urls or [])
+        lead_list.total_sources = lead_list.get_total_sources_count()
     
     return render(request, 'dashboard/lead_builder/list.html', {
         'lead_lists': page_obj,
@@ -355,7 +355,8 @@ def lead_builder_detail(request, lead_list_id):
         'leads': leads,
         'progress_percentage': progress_percentage,
         'progress_display': progress_display,
-        'can_collect_more': lead_list.can_collect_more()
+        'can_collect_more': lead_list.can_collect_more(),
+        'total_sources': lead_list.get_total_sources_count()
     }
     
     return render(request, 'dashboard/lead_builder/detail.html', context)

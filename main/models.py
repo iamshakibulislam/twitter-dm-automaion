@@ -108,22 +108,18 @@ class LeadList(models.Model):
         
         progress = {}
         for key, state in self.pagination_state.items():
+            # Handle both old format (followers_username) and new format (username)
             if key.startswith('followers_'):
                 username = key.replace('followers_', '')
-                progress[f"@{username}"] = {
-                    'type': 'followers',
-                    'collected': state.get('collected_count', 0),
-                    'completed': state.get('completed', False),
-                    'last_processed': state.get('last_processed', 'Never')
-                }
-            elif key.startswith('commenters_'):
-                tweet_id = key.replace('commenters_', '')
-                progress[f"Tweet {tweet_id}"] = {
-                    'type': 'commenters',
-                    'collected': state.get('collected_count', 0),
-                    'completed': state.get('completed', False),
-                    'last_processed': state.get('last_processed', 'Never')
-                }
+            else:
+                username = key
+                
+            progress[f"@{username}"] = {
+                'type': 'followers',
+                'collected': state.get('collected', 0),
+                'completed': not state.get('has_more', True),
+                'last_processed': state.get('last_updated', 'Never')
+            }
         
         return progress
     
@@ -139,6 +135,10 @@ class LeadList(models.Model):
             return f"{self.total_collected} leads collected"
         percentage = self.get_progress_percentage()
         return f"{percentage}% complete ({self.total_collected}/{self.estimated_total_leads})"
+    
+    def get_total_sources_count(self):
+        """Get total number of target sources"""
+        return len(self.target_usernames or []) + len(self.target_post_urls or [])
     
     def update_estimated_total(self, new_estimate):
         """Update estimated total leads (only increase, never decrease)"""
